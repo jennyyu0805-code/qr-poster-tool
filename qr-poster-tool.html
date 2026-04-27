@@ -1,0 +1,1021 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>海报二维码合成工具</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      background: #f5f5f5;
+      color: #222;
+      min-height: 100vh;
+    }
+
+    header {
+      background: linear-gradient(135deg, #2e7d32 0%, #43a047 100%);
+      color: #fff;
+      padding: 22px 32px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+    }
+    header .logo {
+      font-size: 28px;
+    }
+    header h1 {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 1px;
+    }
+    header p {
+      font-size: 13px;
+      opacity: 0.85;
+      margin-top: 2px;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 30px auto;
+      padding: 0 20px;
+      display: grid;
+      grid-template-columns: 400px 1fr;
+      gap: 24px;
+    }
+
+    .panel {
+      background: #fff;
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+    }
+
+    .panel h2 {
+      font-size: 15px;
+      font-weight: 700;
+      color: #2e7d32;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .panel h2::before {
+      content: '';
+      display: inline-block;
+      width: 4px;
+      height: 16px;
+      background: #43a047;
+      border-radius: 2px;
+    }
+
+    /* 上传区 */
+    .upload-zone {
+      border: 2px dashed #c8e6c9;
+      border-radius: 10px;
+      padding: 24px 16px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      background: #f9fbe7;
+      position: relative;
+    }
+    .upload-zone:hover, .upload-zone.drag-over {
+      border-color: #43a047;
+      background: #f1f8e9;
+    }
+    .upload-zone input[type=file] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+      width: 100%;
+      height: 100%;
+    }
+    .upload-zone .icon { font-size: 36px; margin-bottom: 8px; }
+    .upload-zone .label { font-size: 14px; color: #555; }
+    .upload-zone .sub { font-size: 12px; color: #999; margin-top: 4px; }
+
+    .preview-poster-wrap {
+      margin-top: 16px;
+      position: relative;
+      display: inline-block;
+      width: 100%;
+    }
+    #posterPreview {
+      width: 100%;
+      max-height: 420px;
+      object-fit: contain;
+      border-radius: 8px;
+      border: 1px solid #e0e0e0;
+      display: none;
+    }
+
+    /* 二维码区域定位控件 */
+    .qr-pos-section {
+      margin-top: 20px;
+    }
+    .qr-pos-section .hint {
+      font-size: 12px;
+      color: #888;
+      margin-bottom: 10px;
+      line-height: 1.6;
+    }
+    .pos-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .pos-item label {
+      font-size: 12px;
+      color: #555;
+      display: block;
+      margin-bottom: 4px;
+    }
+    .pos-item input[type=number] {
+      width: 100%;
+      padding: 7px 10px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .pos-item input[type=number]:focus {
+      border-color: #43a047;
+    }
+
+    .detect-btn {
+      margin-top: 12px;
+      width: 100%;
+      padding: 9px;
+      background: #e8f5e9;
+      color: #2e7d32;
+      border: 1px solid #c8e6c9;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .detect-btn:hover { background: #c8e6c9; }
+
+    /* 二维码上传 */
+    .qr-list {
+      margin-top: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 260px;
+      overflow-y: auto;
+    }
+    .qr-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: #f9f9f9;
+      border: 1px solid #eeeeee;
+      border-radius: 8px;
+      padding: 8px 12px;
+    }
+    .qr-item img {
+      width: 44px;
+      height: 44px;
+      object-fit: contain;
+      border-radius: 4px;
+      border: 1px solid #e0e0e0;
+    }
+    .qr-item .qr-name {
+      flex: 1;
+      font-size: 13px;
+      color: #333;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .qr-item .qr-del {
+      color: #aaa;
+      cursor: pointer;
+      font-size: 16px;
+      flex-shrink: 0;
+      line-height: 1;
+    }
+    .qr-item .qr-del:hover { color: #e53935; }
+
+    .qr-count-bar {
+      font-size: 12px;
+      color: #888;
+      margin-top: 8px;
+    }
+
+    /* 操作区 */
+    .action-section {
+      margin-top: 20px;
+    }
+
+    .gen-btn {
+      width: 100%;
+      padding: 13px;
+      background: linear-gradient(135deg, #2e7d32, #43a047);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      letter-spacing: 1px;
+      transition: opacity 0.2s, transform 0.1s;
+      box-shadow: 0 3px 12px rgba(67,160,71,0.35);
+    }
+    .gen-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+    .gen-btn:not(:disabled):hover { opacity: 0.9; transform: translateY(-1px); }
+    .gen-btn:not(:disabled):active { transform: translateY(0); }
+
+    .dl-all-btn {
+      width: 100%;
+      margin-top: 10px;
+      padding: 11px;
+      background: #fff;
+      color: #2e7d32;
+      border: 2px solid #43a047;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+      display: none;
+    }
+    .dl-all-btn:hover { background: #e8f5e9; }
+
+    /* 进度 */
+    .progress-wrap {
+      margin-top: 14px;
+      display: none;
+    }
+    .progress-track {
+      width: 100%;
+      height: 8px;
+      background: #e0e0e0;
+      border-radius: 99px;
+      overflow: hidden;
+    }
+    .progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, #43a047, #66bb6a);
+      border-radius: 99px;
+      width: 0%;
+      transition: width 0.3s;
+    }
+    .progress-text {
+      font-size: 12px;
+      color: #777;
+      margin-top: 6px;
+      text-align: center;
+    }
+
+    /* 右侧预览 */
+    .preview-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 14px;
+      margin-top: 8px;
+    }
+    .preview-card {
+      background: #fff;
+      border-radius: 10px;
+      border: 1px solid #e0e0e0;
+      overflow: hidden;
+      box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+      transition: box-shadow 0.2s, transform 0.2s;
+    }
+    .preview-card:hover {
+      box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+      transform: translateY(-2px);
+    }
+    .preview-card img {
+      width: 100%;
+      display: block;
+    }
+    .preview-card .card-footer {
+      padding: 8px 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .preview-card .card-name {
+      font-size: 12px;
+      color: #444;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1;
+    }
+    .preview-card .card-dl {
+      color: #43a047;
+      font-size: 18px;
+      cursor: pointer;
+      flex-shrink: 0;
+      margin-left: 6px;
+      text-decoration: none;
+    }
+    .preview-card .card-dl:hover { color: #2e7d32; }
+
+    .empty-state {
+      grid-column: 1/-1;
+      text-align: center;
+      padding: 60px 20px;
+      color: #bbb;
+    }
+    .empty-state .icon { font-size: 48px; }
+    .empty-state p { margin-top: 12px; font-size: 14px; }
+
+    /* Toast */
+    #toast {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: #323232;
+      color: #fff;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      z-index: 9999;
+      transition: transform 0.3s;
+      pointer-events: none;
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); }
+
+    /* 悬浮标注框 */
+    #overlayCanvas {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    .section-divider {
+      height: 1px;
+      background: #f0f0f0;
+      margin: 18px 0;
+    }
+
+    @media (max-width: 768px) {
+      .container { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <span class="logo">🎨</span>
+  <div>
+    <h1>海报二维码合成工具</h1>
+    <p>上传模板海报 → 批量贴入二维码 → 一键下载全部</p>
+  </div>
+</header>
+
+<div class="container">
+  <!-- 左侧控制面板 -->
+  <div>
+    <!-- Step 1: 上传海报 -->
+    <div class="panel" style="margin-bottom:20px">
+      <h2>第一步：上传海报模板</h2>
+      <div class="upload-zone" id="posterZone">
+        <input type="file" id="posterFile" accept="image/*" />
+        <div class="icon">🖼️</div>
+        <div class="label">点击或拖拽上传海报底图</div>
+        <div class="sub">支持 PNG / JPG / WEBP，建议长图竖版</div>
+      </div>
+      <div class="preview-poster-wrap">
+        <img id="posterPreview" src="" alt="海报预览" />
+        <canvas id="overlayCanvas"></canvas>
+      </div>
+
+      <!-- 二维码区域定位 -->
+      <div class="qr-pos-section" id="qrPosSection" style="display:none">
+        <div class="section-divider"></div>
+        <div style="font-size:14px;font-weight:700;color:#2e7d32;margin-bottom:8px">📐 二维码放置位置</div>
+        <div class="hint">
+          设置二维码在海报中的位置和尺寸（单位：像素，相对于原始图片尺寸）。<br>
+          点击「自动检测白色区域」可自动识别底部留白矩形。
+        </div>
+        <div class="pos-grid">
+          <div class="pos-item">
+            <label>左边距 X (px)</label>
+            <input type="number" id="qrX" value="339" readonly style="background:#f0f0f0;color:#999;cursor:not-allowed" />
+          </div>
+          <div class="pos-item">
+            <label>上边距 Y (px)</label>
+            <input type="number" id="qrY" value="3992" readonly style="background:#f0f0f0;color:#999;cursor:not-allowed" />
+          </div>
+          <div class="pos-item">
+            <label>宽度 W (px)</label>
+            <input type="number" id="qrW" value="402" readonly style="background:#f0f0f0;color:#999;cursor:not-allowed" />
+          </div>
+          <div class="pos-item">
+            <label>高度 H (px)</label>
+            <input type="number" id="qrH" value="402" readonly style="background:#f0f0f0;color:#999;cursor:not-allowed" />
+          </div>
+        </div>
+        <div style="font-size:11px;color:#aaa;text-align:center;margin-top:6px">⚙️ 位置已固定，不可修改</div>
+        <button class="detect-btn" style="margin-top:8px;background:#e3f2fd;color:#1565c0;border-color:#90caf9" onclick="drawOverlay()">👁️ 预览定位框</button>
+        <div style="font-size:12px;color:#888;margin-top:8px">
+          💡 提示：若自动检测不准，可手动调整数值后点击「预览定位框」确认
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2: 上传二维码 -->
+    <div class="panel" style="margin-bottom:20px">
+      <h2>第二步：上传二维码文件</h2>
+      <div class="upload-zone" id="qrZone">
+        <input type="file" id="qrFiles" accept="image/*" multiple />
+        <div class="icon">📱</div>
+        <div class="label">点击或拖拽批量上传二维码</div>
+        <div class="sub">可同时上传多张，文件名即为导出海报的名称</div>
+      </div>
+      <div class="qr-list" id="qrList"></div>
+      <div class="qr-count-bar" id="qrCountBar"></div>
+    </div>
+
+    <!-- Step 3: 生成 -->
+    <div class="panel">
+      <h2>第三步：生成并下载</h2>
+
+      <!-- 输出质量控制 -->
+      <div style="margin-bottom:16px">
+        <div style="font-size:13px;font-weight:700;color:#2e7d32;margin-bottom:10px">🗜️ 输出格式与大小控制</div>
+
+        <!-- 目标文件大小 -->
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 12px">
+          <span style="font-size:13px;color:#166534;white-space:nowrap;flex-shrink:0">🎯 目标大小</span>
+          <input type="number" id="targetSizeKB" value="2048" min="50" max="20000"
+            style="flex:1;padding:6px 8px;border:1px solid #86efac;border-radius:6px;font-size:13px;outline:none;width:80px;text-align:center"
+            oninput="updateTargetSizeLabel()" />
+          <span id="targetSizeLabel" style="font-size:12px;color:#15803d;white-space:nowrap">≈ 2 MB</span>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+          <div>
+            <label style="font-size:12px;color:#555;display:block;margin-bottom:4px">输出格式</label>
+            <select id="outputFormat" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;outline:none" onchange="toggleQualitySlider()">
+              <option value="image/jpeg">JPG（推荐，体积小）</option>
+              <option value="image/png">PNG（无损，体积大）</option>
+              <option value="image/webp">WebP（最小体积）</option>
+            </select>
+          </div>
+          <div id="qualityWrap">
+            <label style="font-size:12px;color:#555;display:block;margin-bottom:4px">手动质量：<span id="qualityVal">70</span>%</label>
+            <input type="range" id="qualitySlider" min="20" max="100" value="70"
+              style="width:100%;accent-color:#43a047"
+              oninput="document.getElementById('qualityVal').textContent=this.value" />
+          </div>
+        </div>
+
+        <div style="display:flex;gap:8px;margin-bottom:10px">
+          <button id="smartCompressBtn" onclick="runSmartCompress()" style="flex:1;padding:8px;background:linear-gradient(135deg,#16a34a,#22c55e);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;transition:opacity 0.2s" onmouseover="this.style.opacity=0.9" onmouseout="this.style.opacity=1">🧠 智能压缩至目标大小</button>
+          <button onclick="resetSettings()" title="清除所有已保存的参数" style="padding:8px 12px;background:#f5f5f5;color:#999;border:1px solid #ddd;border-radius:8px;font-size:12px;cursor:pointer;transition:background 0.2s" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='#f5f5f5'">↺ 重置</button>
+        </div>
+        <div id="sizeHint" style="font-size:12px;color:#888;background:#f9f9f9;border-radius:6px;padding:8px 10px;line-height:1.6">
+          💡 默认 JPG 70%，输出通常在 <strong>1~3 MB</strong> 左右。点击「智能压缩」可精确控制到目标大小。
+        </div>
+      </div>
+
+      <div class="section-divider"></div>
+
+      <div class="action-section">
+        <button class="gen-btn" id="genBtn" onclick="generateAll()" disabled>🚀 开始生成海报</button>
+        <button class="dl-all-btn" id="dlAllBtn" onclick="downloadAll()">⬇️ 打包下载全部 (ZIP)</button>
+      </div>
+      <div class="progress-wrap" id="progressWrap">
+        <div class="progress-track"><div class="progress-bar" id="progressBar"></div></div>
+        <div class="progress-text" id="progressText">准备中...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 右侧预览 -->
+  <div class="panel">
+    <h2>生成预览</h2>
+    <div class="preview-grid" id="previewGrid">
+      <div class="empty-state">
+        <div class="icon">🖼️</div>
+        <p>上传海报和二维码后<br>点击生成按钮查看效果</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<!-- JSZip CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+<script>
+  // ===================== 状态 =====================
+  let posterImg = null;          // HTMLImageElement
+  let posterFileName = '';
+  let qrDataList = [];           // [{name, dataURL, img}]
+  let generatedBlobs = [];       // [{name, blob}]
+
+  // ===================== 海报上传 =====================
+  document.getElementById('posterFile').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    posterFileName = file.name;
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+      const img = new Image();
+      img.onload = function() {
+        posterImg = img;
+        const preview = document.getElementById('posterPreview');
+        preview.src = ev.target.result;
+        preview.style.display = 'block';
+        document.getElementById('qrPosSection').style.display = 'block';
+        // 写入固定坐标（不允许修改）
+        document.getElementById('qrX').value = FIXED_QR_X;
+        document.getElementById('qrY').value = FIXED_QR_Y;
+        document.getElementById('qrW').value = FIXED_QR_W;
+        document.getElementById('qrH').value = FIXED_QR_H;
+        checkReady();
+        showToast('海报上传成功 ✓（二维码位置已固定）');
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+
+  // 拖拽支持
+  setupDragDrop('posterZone', 'posterFile');
+  setupDragDrop('qrZone', 'qrFiles');
+
+  function setupDragDrop(zoneId, inputId) {
+    const zone = document.getElementById(zoneId);
+    zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+    zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+    zone.addEventListener('drop', e => {
+      e.preventDefault();
+      zone.classList.remove('drag-over');
+      const input = document.getElementById(inputId);
+      const dt = new DataTransfer();
+      Array.from(e.dataTransfer.files).forEach(f => dt.items.add(f));
+      input.files = dt.files;
+      input.dispatchEvent(new Event('change'));
+    });
+  }
+
+  // ===================== 自动检测白色矩形 =====================
+  function autoDetectWhiteRect() {
+    if (!posterImg) { showToast('请先上传海报 ⚠️'); return; }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = posterImg.width;
+    canvas.height = posterImg.height;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(posterImg, 0, 0);
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const data = imageData.data;
+    const W = canvas.width, H = canvas.height;
+
+    // 从底部往上扫描，找到连续白色行的顶部
+    const WHITE_THRESH = 240;
+    const MIN_WHITE_RATIO = 0.6; // 行内白色像素占比阈值
+
+    function isRowWhite(y) {
+      let whiteCount = 0;
+      for (let x = 0; x < W; x++) {
+        const idx = (y * W + x) * 4;
+        const r = data[idx], g = data[idx+1], b = data[idx+2];
+        if (r > WHITE_THRESH && g > WHITE_THRESH && b > WHITE_THRESH) whiteCount++;
+      }
+      return (whiteCount / W) >= MIN_WHITE_RATIO;
+    }
+
+    // 从底部找白色区域的bottom
+    let bottom = H - 1;
+    while (bottom > 0 && !isRowWhite(bottom)) bottom--;
+    // 继续往上找white区域的top
+    let top = bottom;
+    while (top > 0 && isRowWhite(top - 1)) top--;
+
+    if (bottom - top < 10) {
+      showToast('未能自动检测到白色区域，请手动设置 ⚠️');
+      return;
+    }
+
+    // 横向找边界
+    function isColWhiteInRange(x, y1, y2) {
+      let white = 0, total = 0;
+      for (let y = y1; y <= y2; y++) {
+        const idx = (y * W + x) * 4;
+        const r = data[idx], g = data[idx+1], b = data[idx+2];
+        if (r > WHITE_THRESH && g > WHITE_THRESH && b > WHITE_THRESH) white++;
+        total++;
+      }
+      return (white / total) >= MIN_WHITE_RATIO;
+    }
+
+    let left = 0, right = W - 1;
+    while (left < W && !isColWhiteInRange(left, top, bottom)) left++;
+    while (right > 0 && !isColWhiteInRange(right, top, bottom)) right--;
+
+    // 加一点内缩作为二维码放置区（去除白色边框内边距）
+    const padding = Math.round(Math.min(bottom - top, right - left) * 0.08);
+    const x = left + padding;
+    const y = top + padding;
+    const w = right - left - padding * 2;
+    const h = bottom - top - padding * 2;
+
+    // 坐标已固定，不允许自动检测覆盖
+    showToast('⚠️ 二维码位置已固定，无需自动检测');
+    return;
+
+    drawOverlay();
+    showToast(`自动检测完成：位置(${x},${y}) 尺寸${w}×${h} ✓`);
+  }
+
+  // ===================== 预览定位框 =====================
+  function drawOverlay() {
+    const preview = document.getElementById('posterPreview');
+    const canvas = document.getElementById('overlayCanvas');
+    if (!posterImg || preview.style.display === 'none') return;
+
+    canvas.width = preview.clientWidth;
+    canvas.height = preview.clientHeight;
+    canvas.style.width = preview.clientWidth + 'px';
+    canvas.style.height = preview.clientHeight + 'px';
+
+    const scaleX = preview.clientWidth / posterImg.width;
+    const scaleY = preview.clientHeight / posterImg.height;
+
+    const qx = parseInt(document.getElementById('qrX').value) * scaleX;
+    const qy = parseInt(document.getElementById('qrY').value) * scaleY;
+    const qw = parseInt(document.getElementById('qrW').value) * scaleX;
+    const qh = parseInt(document.getElementById('qrH').value) * scaleY;
+
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = '#e53935';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 4]);
+    ctx.strokeRect(qx, qy, qw, qh);
+
+    // 角标
+    ctx.fillStyle = '#e53935';
+    ctx.font = 'bold 12px sans-serif';
+    ctx.fillText('二维码区域', qx + 4, qy - 5 > 0 ? qy - 5 : qy + 16);
+  }
+
+  // 数值变化时实时刷新覆盖框
+  ['qrX','qrY','qrW','qrH'].forEach(id => {
+    document.getElementById(id).addEventListener('input', drawOverlay);
+  });
+  window.addEventListener('resize', drawOverlay);
+
+  // ===================== 二维码上传 =====================
+  document.getElementById('qrFiles').addEventListener('change', function(e) {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+
+    let loaded = 0;
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = function(ev) {
+        const img = new Image();
+        img.onload = function() {
+          // 去掉后缀作为名称
+          const name = file.name.replace(/\.[^.]+$/, '');
+          qrDataList.push({ name, dataURL: ev.target.result, img });
+          loaded++;
+          if (loaded === files.length) {
+            renderQrList();
+            checkReady();
+            showToast(`已加载 ${files.length} 张二维码 ✓`);
+          }
+        };
+        img.src = ev.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  });
+
+  function renderQrList() {
+    const list = document.getElementById('qrList');
+    list.innerHTML = '';
+    qrDataList.forEach((item, i) => {
+      const div = document.createElement('div');
+      div.className = 'qr-item';
+      div.innerHTML = `
+        <img src="${item.dataURL}" />
+        <span class="qr-name" title="${item.name}">${item.name}</span>
+        <span class="qr-del" onclick="removeQr(${i})" title="移除">✕</span>
+      `;
+      list.appendChild(div);
+    });
+    document.getElementById('qrCountBar').textContent = qrDataList.length > 0
+      ? `共 ${qrDataList.length} 张二维码`
+      : '';
+  }
+
+  function removeQr(i) {
+    qrDataList.splice(i, 1);
+    renderQrList();
+    checkReady();
+  }
+
+  // ===================== 就绪检测 =====================
+  function checkReady() {
+    const btn = document.getElementById('genBtn');
+    btn.disabled = !(posterImg && qrDataList.length > 0);
+  }
+
+  // ===================== 生成合成 =====================
+  async function generateAll() {
+    if (!posterImg || qrDataList.length === 0) return;
+
+    generatedBlobs = [];
+    const previewGrid = document.getElementById('previewGrid');
+    previewGrid.innerHTML = '';
+
+    const progressWrap = document.getElementById('progressWrap');
+    const progressBar = document.getElementById('progressBar');
+    const progressText = document.getElementById('progressText');
+    progressWrap.style.display = 'block';
+
+    const qx = parseInt(document.getElementById('qrX').value);
+    const qy = parseInt(document.getElementById('qrY').value);
+    const qw = parseInt(document.getElementById('qrW').value);
+    const qh = parseInt(document.getElementById('qrH').value);
+
+    for (let i = 0; i < qrDataList.length; i++) {
+      const item = qrDataList[i];
+      progressText.textContent = `正在生成 ${item.name}... (${i+1}/${qrDataList.length})`;
+      progressBar.style.width = ((i / qrDataList.length) * 100) + '%';
+
+      const blob = await composeImage(posterImg, item.img, qx, qy, qw, qh);
+      const ext = getOutputExt();
+      const fileName = item.name + ext;
+      const url = URL.createObjectURL(blob);
+      generatedBlobs.push({ name: fileName, blob });
+      const sizeStr = formatFileSize(blob.size);
+
+      // 预览卡片
+      const card = document.createElement('div');
+      card.className = 'preview-card';
+      card.innerHTML = `
+        <img src="${url}" />
+        <div class="card-footer">
+          <span class="card-name" title="${item.name}">${item.name}</span>
+          <span style="font-size:10px;color:#999;flex-shrink:0;margin-right:4px">${sizeStr}</span>
+          <a class="card-dl" href="${url}" download="${fileName}" title="下载">⬇</a>
+        </div>
+      `;
+      previewGrid.appendChild(card);
+
+      // 让UI有机会更新
+      await sleep(10);
+    }
+
+    progressBar.style.width = '100%';
+    progressText.textContent = `✅ 全部完成！共生成 ${qrDataList.length} 张海报`;
+
+    const dlAllBtn = document.getElementById('dlAllBtn');
+    dlAllBtn.style.display = 'block';
+
+    showToast(`🎉 成功生成 ${qrDataList.length} 张海报！`);
+  }
+
+  function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  function getOutputExt() {
+    const fmt = document.getElementById('outputFormat').value;
+    if (fmt === 'image/jpeg') return '.jpg';
+    if (fmt === 'image/webp') return '.webp';
+    return '.png';
+  }
+
+  function toggleQualitySlider() {
+    const fmt = document.getElementById('outputFormat').value;
+    const wrap = document.getElementById('qualityWrap');
+    // PNG 不支持质量参数
+    wrap.style.opacity = fmt === 'image/png' ? '0.4' : '1';
+    wrap.style.pointerEvents = fmt === 'image/png' ? 'none' : 'auto';
+
+    const hints = {
+      'image/jpeg': '💡 默认 JPG 70%，输出通常在 <strong>1~3 MB</strong>。点击「智能压缩」可精确到目标大小。',
+      'image/webp': '💡 WebP 比 JPG 再小约 <strong>25%~35%</strong>，但部分老设备/应用不支持。',
+      'image/png': '💡 PNG 为无损格式，体积最大。适合需要后期再处理的场景。'
+    };
+    document.getElementById('sizeHint').innerHTML = hints[fmt];
+  }
+
+  function updateTargetSizeLabel() {
+    const kb = parseInt(document.getElementById('targetSizeKB').value) || 2048;
+    const label = document.getElementById('targetSizeLabel');
+    if (kb >= 1024) label.textContent = `≈ ${(kb/1024).toFixed(1)} MB`;
+    else label.textContent = `≈ ${kb} KB`;
+  }
+
+  /**
+   * 智能压缩：二分法试压，找到最接近目标大小的质量参数
+   * 先用第一张图试压，找到最优 quality 后应用到全局
+   */
+  async function runSmartCompress() {
+    if (!posterImg || qrDataList.length === 0) {
+      showToast('请先上传海报和二维码 ⚠️');
+      return;
+    }
+
+    const targetBytes = (parseInt(document.getElementById('targetSizeKB').value) || 2048) * 1024;
+    const btn = document.getElementById('smartCompressBtn');
+    btn.disabled = true;
+    btn.textContent = '⏳ 压缩测试中...';
+    showToast(`正在测试压缩至 ${targetBytes > 1024*1024 ? (targetBytes/1024/1024).toFixed(1) + ' MB' : Math.round(targetBytes/1024) + ' KB'}...`);
+
+    const qx = parseInt(document.getElementById('qrX').value);
+    const qy = parseInt(document.getElementById('qrY').value);
+    const qw = parseInt(document.getElementById('qrW').value);
+    const qh = parseInt(document.getElementById('qrH').value);
+    const testImg = qrDataList[0].img;
+
+    // 二分搜索最佳质量
+    let lo = 10, hi = 100, bestQ = 70, bestBlob = null;
+
+    for (let iter = 0; iter < 8; iter++) {  // 最多迭代8次
+      const mid = Math.round((lo + hi) / 2);
+      const blob = await tryCompress(posterImg, testImg, qx, qy, qw, qh, mid);
+      if (!blob) continue;
+
+      if (blob.size <= targetBytes) {
+        bestQ = mid;
+        bestBlob = blob;
+        lo = mid + 1;  // 尝试更高质量
+      } else {
+        hi = mid - 1;  // 需要降低质量
+      }
+    }
+
+    if (bestQ !== parseInt(document.getElementById('qualitySlider').value)) {
+      document.getElementById('qualitySlider').value = bestQ;
+      document.getElementById('qualityVal').textContent = bestQ;
+    }
+
+    const finalSizeStr = bestBlob ? formatFileSize(bestBlob.size) : '?';
+    btn.disabled = false;
+    btn.textContent = '🧠 智能压缩至目标大小';
+    showToast(`✅ 已设定质量 ${bestQ}%（预计单张 ≈ ${finalSizeStr}），点击「开始生成」生效`);
+  }
+
+  function tryCompress(poster, qrImg, x, y, w, h, quality) {
+    return new Promise(resolve => {
+      const canvas = document.createElement('canvas');
+      canvas.width = poster.width;
+      canvas.height = poster.height;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(poster, 0, 0);
+      ctx.drawImage(qrImg, x, y, w, h);
+
+      const fmt = document.getElementById('outputFormat').value;
+      canvas.toBlob(blob => resolve(blob), fmt, quality / 100);
+    });
+  }
+
+  function formatFileSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / 1024 / 1024).toFixed(2) + ' MB';
+  }
+
+  function composeImage(poster, qrImg, x, y, w, h) {
+    const fmt = document.getElementById('outputFormat').value;
+    const quality = parseInt(document.getElementById('qualitySlider').value) / 100;
+
+    return new Promise(resolve => {
+      const canvas = document.createElement('canvas');
+      canvas.width = poster.width;
+      canvas.height = poster.height;
+      const ctx = canvas.getContext('2d');
+
+      // JPG 不支持透明通道，先填白底
+      if (fmt === 'image/jpeg') {
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+
+      // 画底图
+      ctx.drawImage(poster, 0, 0);
+      // 画二维码
+      ctx.drawImage(qrImg, x, y, w, h);
+
+      canvas.toBlob(blob => resolve(blob), fmt, fmt === 'image/png' ? undefined : quality);
+    });
+  }
+
+  // ===================== 批量下载 ZIP =====================
+  async function downloadAll() {
+    if (!generatedBlobs.length) return;
+
+    showToast('正在打包 ZIP...');
+    const zip = new JSZip();
+    const folder = zip.folder('海报合集');
+
+    for (const item of generatedBlobs) {
+      folder.file(item.name, item.blob);
+    }
+
+    const zipBlob = await zip.generateAsync({ type: 'blob' });
+    const url = URL.createObjectURL(zipBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = '海报合集.zip';
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('✅ ZIP 下载已启动！');
+  }
+
+  // ===================== localStorage 持久化 =====================
+  const STORAGE_KEY = 'qrTool_settings';
+
+  // 固定坐标（不允许用户修改）
+  const FIXED_QR_X = 339;
+  const FIXED_QR_Y = 3992;
+  const FIXED_QR_W = 402;
+  const FIXED_QR_H = 402;
+
+  const SAVE_IDS = [
+    'outputFormat','qualitySlider','targetSizeKB'
+  ];
+
+  function saveSettings() {
+    const data = {};
+    SAVE_IDS.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) data[id] = el.value;
+    });
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  }
+
+  function loadSettings() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return false;
+      const data = JSON.parse(raw);
+      SAVE_IDS.forEach(id => {
+        if (data[id] !== undefined) {
+          const el = document.getElementById(id);
+          if (el) el.value = data[id];
+        }
+      });
+      // 同步质量显示值
+      const qv = document.getElementById('qualityVal');
+      if (qv) qv.textContent = document.getElementById('qualitySlider').value;
+      updateTargetSizeLabel();
+      toggleQualitySlider();
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  // 页面加载时恢复参数
+  window.addEventListener('DOMContentLoaded', () => {
+    loadSettings();
+  });
+
+  // 所有参数变化时自动保存
+  SAVE_IDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.addEventListener('input', saveSettings);
+      el.addEventListener('change', saveSettings);
+    }
+  });
+
+  function resetSettings() {
+    localStorage.removeItem(STORAGE_KEY);
+    showToast('✅ 参数已重置，刷新页面后生效');
+  }
+
+  // ===================== Toast =====================
+  let toastTimer;
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+  }
+</script>
+</body>
+</html>
